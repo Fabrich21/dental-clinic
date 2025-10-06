@@ -18,6 +18,10 @@ interface Doctor {
 interface PatientData {
   documentType: string;
   rut: string;
+  nombre?: string;
+  apellido?: string;
+  patientId?: number;
+  isExistingPatient: boolean;
 }
 
 interface SpecialtyData {
@@ -148,8 +152,9 @@ function App() {
             />
           )}
 
-          {currentStep === 3 && (
+          {currentStep === 3 && specialtyData && (
             <Step3SelectDateTime 
+              specialtyData={specialtyData}
               onNext={handleStep3Complete}
               onBack={handleBack}
             />

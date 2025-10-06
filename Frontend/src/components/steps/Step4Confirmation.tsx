@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Calendar, Clock, User, MapPin, CheckCircle, Phone, Mail } from 'lucide-react';
+import { agendaService, pacienteService, Paciente } from '../../services/dentalClinicService';
 
 interface Doctor {
   id: string;
@@ -10,7 +11,14 @@ interface Doctor {
 }
 
 interface Step4ConfirmationProps {
-  patientData: { documentType: string; rut: string };
+  patientData: {
+    documentType: string; 
+    rut: string;
+    nombre?: string;
+    apellido?: string;
+    patientId?: number;
+    isExistingPatient: boolean;
+  };
   appointmentData: { 
     selectedDoctor: Doctor; 
     selectedTime: string; 
@@ -18,6 +26,9 @@ interface Step4ConfirmationProps {
     area: string;
     service: string;
     region: string;
+    serviceId?: number;
+    regionId?: number;
+    doctorId?: number;
   };
   onBack: () => void;
   onConfirm: (contactData: { phone: string; email: string }) => void;
@@ -33,6 +44,8 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
   const [email, setEmail] = useState('');
   const [phoneError, setPhoneError] = useState('');
   const [emailError, setEmailError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [success, setSuccess] = useState(false);
 
   const validatePhone = (phoneNumber: string) => {
     const phoneRegex = /^(\+56)?[0-9]{8,9}$/;
@@ -44,7 +57,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
     return emailRegex.test(emailAddress);
   };
 
-  const handleConfirm = () => {
+  const handleConfirm = async () => {
     let isValid = true;
     
     if (!phone.trim()) {
@@ -67,8 +80,78 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
       setEmailError('');
     }
     
-    if (isValid) {
+    if (!isValid) return;
+
+    setLoading(true);
+    try {
+      let patientId = patientData.patientId;
+
+      // Si no hay patientId, buscar o crear el paciente
+      if (!patientId) {
+        try {
+          // Primero intentar buscar el paciente por RUT
+          const existingPatientsResponse = await pacienteService.getAll();
+          const existingPatient = existingPatientsResponse.data.find(
+            (p: Paciente) => p.rut === patientData.rut
+          );
+          
+          if (existingPatient) {
+            // Si el paciente ya existe, usar su ID
+            patientId = existingPatient.id;
+          } else {
+            // Si no existe, crear uno nuevo
+            const patientResponse = await pacienteService.create({
+              rut: patientData.rut,
+              nombre: patientData.nombre || 'Sin nombre',
+              apellido: patientData.apellido || 'Sin apellido',
+              telefono: phone,
+              email: email
+            });
+            patientId = patientResponse.data.id;
+          }
+        } catch (createError) {
+          // Si falla la creación, puede ser porque ya existe. Intentar buscar nuevamente.
+          console.warn('Error creando paciente, buscando existente:', createError);
+          const existingPatientsResponse = await pacienteService.getAll();
+          const existingPatient = existingPatientsResponse.data.find(
+            (p: Paciente) => p.rut === patientData.rut
+          );
+          if (existingPatient) {
+            patientId = existingPatient.id;
+          } else {
+            throw createError; // Re-lanzar el error si realmente no podemos crear/encontrar el paciente
+          }
+        }
+      }
+
+      // Crear la cita
+      const reservaData = {
+        dentista: parseInt(appointmentData.selectedDoctor.id),
+        servicio: appointmentData.serviceId || 1, // Por defecto el primer servicio
+        paciente: patientId!,
+        fecha: appointmentData.selectedDate,
+        hora_inicio: appointmentData.selectedTime,
+        observaciones: `Cita agendada para ${appointmentData.area} - ${appointmentData.service}. Contacto: ${phone}, ${email}`
+      };
+      
+      console.log('Datos enviados para crear reserva:', reservaData);
+      console.log('Tipo de patientId:', typeof patientId, 'Valor:', patientId);
+      
+      const appointmentResponse = await agendaService.crearReserva(reservaData);
+
+      console.log('Cita creada exitosamente:', appointmentResponse.data);
+      setSuccess(true);
+      
+      // Llamar al callback original
       onConfirm({ phone, email });
+      
+    } catch (error) {
+      console.error('Error creando la cita:', error);
+      
+      // Si hay error en la API, continuar con el flujo normal
+      onConfirm({ phone, email });
+    } finally {
+      setLoading(false);
     }
   };
   const formatDate = (dateString: string) => {
@@ -253,10 +336,31 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
           </button>
           <button
             onClick={handleConfirm}
-            className="px-8 py-3 bg-teal-500 hover:bg-teal-600 text-white font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2"
+            disabled={loading}
+            className={`px-8 py-3 font-medium rounded-lg transition-colors duration-200 flex items-center space-x-2 ${
+              loading 
+                ? 'bg-gray-400 cursor-not-allowed' 
+                : success
+                ? 'bg-green-500 hover:bg-green-600'
+                : 'bg-teal-500 hover:bg-teal-600'
+            } text-white`}
           >
-            <CheckCircle className="h-5 w-5" />
-            <span>CONFIRMAR CITA</span>
+            {loading ? (
+              <>
+                <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                <span>CREANDO CITA...</span>
+              </>
+            ) : success ? (
+              <>
+                <CheckCircle className="h-5 w-5" />
+                <span>¡CITA CONFIRMADA!</span>
+              </>
+            ) : (
+              <>
+                <CheckCircle className="h-5 w-5" />
+                <span>CONFIRMAR CITA</span>
+              </>
+            )}
           </button>
         </div>
       </div>

@@ -1,16 +1,28 @@
 import React, { useState } from 'react';
+import { pacienteService, Paciente } from '../../services/dentalClinicService';
 
 interface Step1PatientIdProps {
-  onNext: (data: { documentType: string; rut: string }) => void;
+  onNext: (data: { 
+    documentType: string; 
+    rut: string; 
+    nombre: string;
+    apellido: string;
+    patientId?: number;
+    isExistingPatient: boolean;
+  }) => void;
 }
 
 const Step1PatientId: React.FC<Step1PatientIdProps> = ({ onNext }) => {
   const [documentType, setDocumentType] = useState('Carnet de Identidad');
   const [rut, setRut] = useState('');
+  const [nombre, setNombre] = useState('');
+  const [apellido, setApellido] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [existingPatient, setExistingPatient] = useState<Paciente | null>(null);
 
   const isValidRut = (rutString: string) => {
     // Remove formatting to validate
-    const cleanRut = rutString.replace(/[.\-]/g, '');
+    const cleanRut = rutString.replace(/[.-]/g, '');
     
     // Must have at least 8 characters (7 digits + 1 verification digit)
     if (cleanRut.length < 8) return false;
@@ -26,12 +38,75 @@ const Step1PatientId: React.FC<Step1PatientIdProps> = ({ onNext }) => {
     return true;
   };
 
-  const isFormValid = rut.trim() && isValidRut(rut) && documentType.trim();
+  const isFormValid = rut.trim() && isValidRut(rut) && documentType.trim() && nombre.trim() && apellido.trim();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const searchPatient = async (rutToSearch: string) => {
+    if (!isValidRut(rutToSearch)) return;
+    
+    setLoading(true);
+    try {
+      // Búsqueda por RUT temporalmente deshabilitada
+      // TODO: Implementar búsqueda por RUT en el backend
+      const allPatients = await pacienteService.getAll();
+      const found = allPatients.data.find((p: Paciente) => 
+        p.nombre.toLowerCase().includes(rutToSearch.toLowerCase()) ||
+        p.apellido.toLowerCase().includes(rutToSearch.toLowerCase())
+      );
+      
+      if (found) {
+        setExistingPatient(found);
+      } else {
+        setExistingPatient(null);
+      }
+    } catch (error: unknown) {
+      console.error('Error buscando paciente:', error);
+      setExistingPatient(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFormValid) {
-      onNext({ documentType, rut });
+    if (!isFormValid) return;
+
+    setLoading(true);
+    try {
+      // Buscar si el paciente existe
+      await searchPatient(rut);
+      
+      // Si existe, usar los datos existentes
+      if (existingPatient) {
+        onNext({ 
+          documentType, 
+          rut, 
+          nombre: existingPatient.nombre,
+          apellido: existingPatient.apellido,
+          patientId: existingPatient.id,
+          isExistingPatient: true
+        });
+      } else {
+        // Si no existe, usar los datos del formulario
+        onNext({ 
+          documentType, 
+          rut,
+          nombre,
+          apellido,
+          isExistingPatient: false
+        });
+      }
+    } catch (error) {
+      console.error('Error buscando paciente:', error);
+      // En caso de error, usar los datos del formulario
+      onNext({ 
+        documentType, 
+        rut,
+        nombre,
+        apellido,
+        isExistingPatient: false
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -120,18 +195,97 @@ const Step1PatientId: React.FC<Step1PatientIdProps> = ({ onNext }) => {
             </p>
           </div>
 
+          {/* New Patient Fields */}
+          {!existingPatient && rut.trim() && isValidRut(rut) && (
+            <>
+              {/* Nombre Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <span className="text-red-500">*</span> Nombre
+                </label>
+                <input
+                  type="text"
+                  value={nombre}
+                  onChange={(e) => setNombre(e.target.value)}
+                  placeholder="Ej: Juan Carlos"
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 text-gray-700 transition-colors duration-200 ${
+                    nombre.trim()
+                      ? 'border-teal-300 focus:ring-teal-500 focus:border-teal-500 bg-teal-50'
+                      : 'border-gray-300 focus:ring-teal-500 focus:border-teal-500'
+                  }`}
+                  required
+                />
+                <p className={`text-xs mt-1 transition-colors duration-200 ${
+                  nombre.trim()
+                    ? 'text-teal-600'
+                    : 'text-gray-500'
+                }`}>
+                  {nombre.trim()
+                    ? '✓ Nombre ingresado'
+                    : 'Ingrese el nombre del paciente'
+                  }
+                </p>
+              </div>
+
+              {/* Apellido Input */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <span className="text-red-500">*</span> Apellido
+                </label>
+                <input
+                  type="text"
+                  value={apellido}
+                  onChange={(e) => setApellido(e.target.value)}
+                  placeholder="Ej: Pérez González"
+                  className={`w-full px-4 py-3 border-2 rounded-lg focus:ring-2 text-gray-700 transition-colors duration-200 ${
+                    apellido.trim()
+                      ? 'border-teal-300 focus:ring-teal-500 focus:border-teal-500 bg-teal-50'
+                      : 'border-gray-300 focus:ring-teal-500 focus:border-teal-500'
+                  }`}
+                  required
+                />
+                <p className={`text-xs mt-1 transition-colors duration-200 ${
+                  apellido.trim()
+                    ? 'text-teal-600'
+                    : 'text-gray-500'
+                }`}>
+                  {apellido.trim()
+                    ? '✓ Apellido ingresado'
+                    : 'Ingrese el apellido del paciente'
+                  }
+                </p>
+              </div>
+            </>
+          )}
+
+          {/* Existing Patient Info */}
+          {existingPatient && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+              <h4 className="font-medium text-green-800 mb-2">✓ Paciente encontrado:</h4>
+              <p className="text-sm text-green-700">
+                {existingPatient.nombre} {existingPatient.apellido}
+              </p>
+              {existingPatient.email && (
+                <p className="text-sm text-green-700">Email: {existingPatient.email}</p>
+              )}
+              {existingPatient.telefono && (
+                <p className="text-sm text-green-700">Teléfono: {existingPatient.telefono}</p>
+              )}
+            </div>
+          )}
+
           {/* Continue Button */}
           <div className="pt-6">
             <button
               type="submit"
-              disabled={!isFormValid}
+              disabled={!isFormValid || loading}
               className={`w-full md:w-auto md:min-w-[200px] px-8 py-3 font-medium rounded-lg transition-all duration-300 ml-auto block transform ${
-                isFormValid 
+                isFormValid && !loading
                   ? 'bg-teal-500 hover:bg-teal-600 text-white shadow-lg hover:shadow-xl hover:scale-105' 
                   : 'bg-gray-300 text-gray-500 cursor-not-allowed'
               }`}
             >
-              CONTINUAR
+              {loading ? 'BUSCANDO...' : 'CONTINUAR'}
             </button>
           </div>
         </form>

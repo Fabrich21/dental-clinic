@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { dentistaService, servicioService, regionService, Dentista, Servicio, Region } from '../../services/dentalClinicService';
 
 interface Step2SelectSpecialtyProps {
   onNext: (data: { 
@@ -6,6 +7,9 @@ interface Step2SelectSpecialtyProps {
     area: string;
     service: string;
     region: string;
+    serviceId?: number;
+    regionId?: number;
+    doctorId?: number;
   }) => void;
   onBack: () => void;
 }
@@ -13,24 +17,51 @@ interface Step2SelectSpecialtyProps {
 const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onBack }) => {
   const [searchType, setSearchType] = useState<'specialty' | 'professional'>('specialty');
   const [area, setArea] = useState('Dental');
-  const [selectedService, setSelectedService] = useState('Diagnóstico Inicial');
   const [service, setService] = useState('');
   const [region, setRegion] = useState('');
   const [selectedDoctor, setSelectedDoctor] = useState('');
+  
+  // Estados para datos del API
+  const [services, setServices] = useState<Servicio[]>([]);
+  const [regions, setRegions] = useState<Region[]>([]);
+  const [doctors, setDoctors] = useState<Dentista[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const areas = ['Dental', 'GES Dental'];
-  const services = ['Diagnóstico Inicial', 'Diagnóstico por Derivación', 'Control de Especialidad', 'Preventivo Dental'];
-  const regions = [
-    'Región de Coquimbo',
-    'Región de Antofagasta',
-  ];
-  const doctors = [
-    'Dr. Juan Pérez - Odontólogo General',
-    'Dra. María González - Ortodoncista',
-    'Dr. Carlos Silva - Endodoncista',
-    'Dra. Ana Martínez - Periodoncista',
-    'Dr. Luis Fernández - Cirujano Oral'
-  ];
+
+  // Filtrar doctores por región seleccionada
+  const filteredDoctors = region 
+    ? doctors.filter(doctor => doctor.region?.nombre === region)
+    : doctors;
+
+  // Cargar datos del API al montar el componente
+  useEffect(() => {
+    const loadData = async () => {
+      setLoading(true);
+      try {
+        const [servicesResponse, doctorsResponse, regionsResponse] = await Promise.all([
+          servicioService.getAll(),
+          dentistaService.getAll(),
+          regionService.getAll()
+        ]);
+        
+        setServices(servicesResponse.data);
+        setDoctors(doctorsResponse.data);
+        setRegions(regionsResponse.data);
+      } catch (error) {
+        console.error('Error cargando datos:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // Limpiar selección de doctor cuando cambie la región
+  useEffect(() => {
+    setSelectedDoctor('');
+  }, [region]);
 
   const isFormValid = searchType === 'specialty' 
     ? service.trim() && region.trim()
@@ -38,10 +69,36 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (isFormValid) {
-      onNext({ searchType, area, service, region });
-    }
+    if (!isFormValid) return;
+
+    // Encontrar IDs de los elementos seleccionados
+    const selectedServiceObj = services.find(s => s.nombre === service);
+    const selectedRegionObj = regions.find(r => r.nombre === region);
+    const selectedDoctorObj = doctors.find(d => `${d.nombre} ${d.apellido}` === selectedDoctor);
+
+    onNext({ 
+      searchType, 
+      area, 
+      service, 
+      region,
+      serviceId: selectedServiceObj?.id,
+      regionId: selectedRegionObj?.id,
+      doctorId: selectedDoctorObj?.id
+    });
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="bg-white rounded-2xl shadow-lg p-8 md:p-12">
+          <div className="text-center">
+            <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-teal-500"></div>
+            <p className="mt-4 text-gray-600">Cargando datos...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -119,8 +176,8 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                 >
                   <option value="">Selecciona un servicio</option>
                   {services.map((serviceOption) => (
-                    <option key={serviceOption} value={serviceOption}>
-                      {serviceOption}
+                    <option key={serviceOption.id} value={serviceOption.nombre}>
+                      {serviceOption.nombre}
                     </option>
                   ))}
                 </select>
@@ -141,8 +198,8 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                 >
                   <option value="">Selecciona una región</option>
                   {regions.map((regionOption) => (
-                    <option key={regionOption} value={regionOption}>
-                      {regionOption}
+                    <option key={regionOption.id} value={regionOption.nombre}>
+                      {regionOption.nombre}
                     </option>
                   ))}
                 </select>
@@ -165,10 +222,15 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                   }`}
                   required
                 >
-                  <option value="">Selecciona un médico</option>
-                  {doctors.map((doctorOption) => (
-                    <option key={doctorOption} value={doctorOption}>
-                      {doctorOption}
+                  <option value="">
+                    {region && filteredDoctors.length === 0 
+                      ? 'No hay médicos disponibles en esta región' 
+                      : 'Selecciona un médico'
+                    }
+                  </option>
+                  {filteredDoctors.map((doctorOption) => (
+                    <option key={doctorOption.id} value={`${doctorOption.nombre} ${doctorOption.apellido}`}>
+                      {doctorOption.nombre} {doctorOption.apellido} - {doctorOption.especialidad}
                     </option>
                   ))}
                 </select>
@@ -190,8 +252,8 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                   >
                     <option value="">Selecciona un servicio</option>
                     {services.map((serviceOption) => (
-                      <option key={serviceOption} value={serviceOption}>
-                        {serviceOption}
+                      <option key={serviceOption.id} value={serviceOption.nombre}>
+                        {serviceOption.nombre}
                       </option>
                     ))}
                   </select>
@@ -212,8 +274,8 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                   >
                     <option value="">Selecciona una región</option>
                     {regions.map((regionOption) => (
-                      <option key={regionOption} value={regionOption}>
-                        {regionOption}
+                      <option key={regionOption.id} value={regionOption.nombre}>
+                        {regionOption.nombre}
                       </option>
                     ))}
                   </select>
