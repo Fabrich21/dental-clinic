@@ -91,9 +91,10 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
         try {
           // Primero intentar buscar el paciente por RUT
           const existingPatientsResponse = await pacienteService.getAll();
-          const existingPatient = existingPatientsResponse.data.find(
+          const patients = existingPatientsResponse.data?.results || existingPatientsResponse.data || [];
+          const existingPatient = Array.isArray(patients) ? patients.find(
             (p: Paciente) => p.rut === patientData.rut
-          );
+          ) : null;
           
           if (existingPatient) {
             // Si el paciente ya existe, usar su ID
@@ -107,15 +108,16 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
               telefono: phone,
               email: email
             });
-            patientId = patientResponse.data.id;
+            patientId = patientResponse.data?.id;
           }
         } catch (createError) {
           // Si falla la creación, puede ser porque ya existe. Intentar buscar nuevamente.
           console.warn('Error creando paciente, buscando existente:', createError);
           const existingPatientsResponse = await pacienteService.getAll();
-          const existingPatient = existingPatientsResponse.data.find(
+          const patients = existingPatientsResponse.data?.results || existingPatientsResponse.data || [];
+          const existingPatient = Array.isArray(patients) ? patients.find(
             (p: Paciente) => p.rut === patientData.rut
-          );
+          ) : null;
           if (existingPatient) {
             patientId = existingPatient.id;
           } else {
@@ -297,7 +299,7 @@ const Step4Confirmation: React.FC<Step4ConfirmationProps> = ({
               <MapPin className="h-6 w-6 text-orange-500" />
               <div>
                 <label className="text-sm font-medium text-gray-500">Centro</label>
-                <p className="text-gray-900">Clínica RedSalud Elqui-Dental</p>
+                <p className="text-gray-900">SaludUCN - Dental</p>
               </div>
             </div>
           </div>

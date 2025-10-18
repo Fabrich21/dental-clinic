@@ -5,15 +5,11 @@ import { AuthProvider } from './contexts/AuthContext';
 // Public booking components
 import { BookingApp } from './components/BookingApp';
 
-// Admin components  
+// Admin components
 import { LoginPage } from './components/admin/LoginPage';
 import { AdminLayout } from './components/admin/AdminLayout';
-import { DashboardPage } from './components/admin/DashboardPageNew';
+import { DashboardPage } from './components/admin/DashboardPage';
 import { ProtectedRoute } from './components/admin/ProtectedRoute';
-import { AgendaPage } from './components/admin/AgendaPageNew';
-import { VacacionesPage } from './components/admin/VacacionesPage';
-import { HorariosPage } from './components/admin/HorariosPage';
-import { ReservasPage } from './components/admin/ReservasPage';
 
 function App() {
   return (
@@ -37,10 +33,10 @@ function App() {
           >
             <Route index element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="agenda" element={<AgendaPage />} />
-            <Route path="reservas" element={<ReservasPage />} />
-            <Route path="vacaciones" element={<VacacionesPage />} />
-            <Route path="horarios" element={<HorariosPage />} />
+            <Route path="agenda" element={<div className="p-6 bg-white rounded-lg shadow">Agenda - En desarrollo</div>} />
+            <Route path="reservas" element={<div className="p-6 bg-white rounded-lg shadow">Reservas - En desarrollo</div>} />
+            <Route path="vacaciones" element={<div className="p-6 bg-white rounded-lg shadow">Vacaciones - En desarrollo</div>} />
+            <Route path="horarios" element={<div className="p-6 bg-white rounded-lg shadow">Horarios - En desarrollo</div>} />
             <Route path="configuracion" element={<div className="p-6 bg-white rounded-lg shadow">Configuración - En desarrollo</div>} />
           </Route>
 
