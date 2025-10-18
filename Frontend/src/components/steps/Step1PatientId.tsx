@@ -47,11 +47,12 @@ const Step1PatientId: React.FC<Step1PatientIdProps> = ({ onNext }) => {
     try {
       // Búsqueda por RUT temporalmente deshabilitada
       // TODO: Implementar búsqueda por RUT en el backend
-      const allPatients = await pacienteService.getAll();
-      const found = allPatients.data.find((p: Paciente) => 
+      const response = await pacienteService.getAll();
+      const allPatients = response.data?.results || response.data || [];
+      const found = Array.isArray(allPatients) ? allPatients.find((p: Paciente) => 
         p.nombre.toLowerCase().includes(rutToSearch.toLowerCase()) ||
         p.apellido.toLowerCase().includes(rutToSearch.toLowerCase())
-      );
+      ) : null;
       
       if (found) {
         setExistingPatient(found);

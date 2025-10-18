@@ -31,8 +31,8 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
 
   // Filtrar doctores por región seleccionada
   const filteredDoctors = region 
-    ? doctors.filter(doctor => doctor.region?.nombre === region)
-    : doctors;
+    ? (Array.isArray(doctors) ? doctors.filter(doctor => doctor.region?.nombre === region) : [])
+    : (Array.isArray(doctors) ? doctors : []);
 
   // Cargar datos del API al montar el componente
   useEffect(() => {
@@ -45,11 +45,15 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
           regionService.getAll()
         ]);
         
-        setServices(servicesResponse.data);
-        setDoctors(doctorsResponse.data);
-        setRegions(regionsResponse.data);
+        setServices(servicesResponse.data?.results || servicesResponse.data || []);
+        setDoctors(doctorsResponse.data?.results || doctorsResponse.data || []);
+        setRegions(regionsResponse.data?.results || regionsResponse.data || []);
       } catch (error) {
         console.error('Error cargando datos:', error);
+        // Asegurar que los arrays estén inicializados incluso en caso de error
+        setServices([]);
+        setDoctors([]);
+        setRegions([]);
       } finally {
         setLoading(false);
       }
@@ -72,9 +76,9 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
     if (!isFormValid) return;
 
     // Encontrar IDs de los elementos seleccionados
-    const selectedServiceObj = services.find(s => s.nombre === service);
-    const selectedRegionObj = regions.find(r => r.nombre === region);
-    const selectedDoctorObj = doctors.find(d => `${d.nombre} ${d.apellido}` === selectedDoctor);
+    const selectedServiceObj = Array.isArray(services) ? services.find(s => s.nombre === service) : null;
+    const selectedRegionObj = Array.isArray(regions) ? regions.find(r => r.nombre === region) : null;
+    const selectedDoctorObj = Array.isArray(doctors) ? doctors.find(d => `${d.nombre} ${d.apellido}` === selectedDoctor) : null;
 
     onNext({ 
       searchType, 
@@ -175,7 +179,7 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                   required
                 >
                   <option value="">Selecciona un servicio</option>
-                  {services.map((serviceOption) => (
+                  {Array.isArray(services) && services.map((serviceOption) => (
                     <option key={serviceOption.id} value={serviceOption.nombre}>
                       {serviceOption.nombre}
                     </option>
@@ -197,7 +201,7 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                   required
                 >
                   <option value="">Selecciona una región</option>
-                  {regions.map((regionOption) => (
+                  {Array.isArray(regions) && regions.map((regionOption) => (
                     <option key={regionOption.id} value={regionOption.nombre}>
                       {regionOption.nombre}
                     </option>
@@ -228,7 +232,7 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                       : 'Selecciona un médico'
                     }
                   </option>
-                  {filteredDoctors.map((doctorOption) => (
+                  {Array.isArray(filteredDoctors) && filteredDoctors.map((doctorOption) => (
                     <option key={doctorOption.id} value={`${doctorOption.nombre} ${doctorOption.apellido}`}>
                       {doctorOption.nombre} {doctorOption.apellido} - {doctorOption.especialidad}
                     </option>
@@ -251,7 +255,7 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                     required
                   >
                     <option value="">Selecciona un servicio</option>
-                    {services.map((serviceOption) => (
+                    {Array.isArray(services) && services.map((serviceOption) => (
                       <option key={serviceOption.id} value={serviceOption.nombre}>
                         {serviceOption.nombre}
                       </option>
@@ -273,7 +277,7 @@ const Step2SelectSpecialty: React.FC<Step2SelectSpecialtyProps> = ({ onNext, onB
                     required
                   >
                     <option value="">Selecciona una región</option>
-                    {regions.map((regionOption) => (
+                    {Array.isArray(regions) && regions.map((regionOption) => (
                       <option key={regionOption.id} value={regionOption.nombre}>
                         {regionOption.nombre}
                       </option>

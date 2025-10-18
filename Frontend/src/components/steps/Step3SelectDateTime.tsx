@@ -255,7 +255,7 @@ const Step3SelectDateTime: React.FC<Step3SelectDateTimeProps> = ({ specialtyData
         <div className="flex items-center justify-between mb-6 p-4 bg-gray-50 rounded-lg">
           <div className="flex items-center gap-3">
             <div className="w-3 h-3 bg-teal-500 rounded-full"></div>
-            <h3 className="font-medium text-gray-900">Clínica RedSalud Elqui-Dental</h3>
+            <h3 className="font-medium text-gray-900">Salud UCN - DENTAL</h3>
           </div>
           <button className="text-teal-600 hover:text-teal-700">
             <ChevronRight className="h-5 w-5" />
